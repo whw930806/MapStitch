@@ -480,7 +480,8 @@
         availableSlots = {};
         for (let key in chunks) {
             const [gx, gy] = key.split('_').map(Number);
-            const neighbors = [[gx-1,gy], [gx+1,gy], [gx,gy-1], [gx,gy+1]];
+            const neighbors = [[gx-1,gy], [gx+1,gy], [gx,gy-1], [gx,gy+1],
+                [gx-1,gy-1], [gx+1,gy-1], [gx-1,gy+1], [gx+1,gy+1]];
             for (let [nx, ny] of neighbors) {
                 const nKey = `${nx}_${ny}`; if (!chunks[nKey]) availableSlots[nKey] = { gx: nx, gy: ny };
             }
@@ -886,8 +887,10 @@
     function downloadEdgeForAI(gx, gy) {
         const leftN = chunks[`${gx - 1}_${gy}`], rightN = chunks[`${gx + 1}_${gy}`];
         const topN = chunks[`${gx}_${gy - 1}`], bottomN = chunks[`${gx}_${gy + 1}`];
+        const topLeft = chunks[`${gx - 1}_${gy - 1}`], topRight = chunks[`${gx + 1}_${gy - 1}`];
+        const bottomLeft = chunks[`${gx - 1}_${gy + 1}`], bottomRight = chunks[`${gx + 1}_${gy + 1}`];
 
-        if ((!leftN || leftN.isPending) && (!rightN || rightN.isPending) && (!topN || topN.isPending) && (!bottomN || bottomN.isPending)) {
+        if (![leftN, rightN, topN, bottomN, topLeft, topRight, bottomLeft, bottomRight].some(n => n && !n.isPending)) {
             return alert(t('msg_err_grid'));
         }
         
@@ -896,9 +899,15 @@
         const eCtx = edgeCanvas.getContext('2d');
         
         if (leftN && !leftN.isPending) eCtx.drawImage(leftN.fullImage, CHUNK_SIZE - EDGE_WIDTH, 0, EDGE_WIDTH, CHUNK_SIZE, 0, 0, EDGE_WIDTH, CHUNK_SIZE);
-        else if (rightN && !rightN.isPending) eCtx.drawImage(rightN.fullImage, 0, 0, EDGE_WIDTH, CHUNK_SIZE, CHUNK_SIZE - EDGE_WIDTH, 0, EDGE_WIDTH, CHUNK_SIZE);
-        else if (topN && !topN.isPending) eCtx.drawImage(topN.fullImage, 0, CHUNK_SIZE - EDGE_WIDTH, CHUNK_SIZE, EDGE_WIDTH, 0, 0, CHUNK_SIZE, EDGE_WIDTH);
-        else if (bottomN && !bottomN.isPending) eCtx.drawImage(bottomN.fullImage, 0, 0, CHUNK_SIZE, EDGE_WIDTH, 0, CHUNK_SIZE - EDGE_WIDTH, CHUNK_SIZE, EDGE_WIDTH);
+        if (rightN && !rightN.isPending) eCtx.drawImage(rightN.fullImage, 0, 0, EDGE_WIDTH, CHUNK_SIZE, CHUNK_SIZE - EDGE_WIDTH, 0, EDGE_WIDTH, CHUNK_SIZE);
+        if (topN && !topN.isPending) eCtx.drawImage(topN.fullImage, 0, CHUNK_SIZE - EDGE_WIDTH, CHUNK_SIZE, EDGE_WIDTH, 0, 0, CHUNK_SIZE, EDGE_WIDTH);
+        if (bottomN && !bottomN.isPending) eCtx.drawImage(bottomN.fullImage, 0, 0, CHUNK_SIZE, EDGE_WIDTH, 0, CHUNK_SIZE - EDGE_WIDTH, CHUNK_SIZE, EDGE_WIDTH);
+
+        // Draw diagonal references last so their corners take precedence at intersections.
+        if (topLeft && !topLeft.isPending) eCtx.drawImage(topLeft.fullImage, CHUNK_SIZE - EDGE_WIDTH, CHUNK_SIZE - EDGE_WIDTH, EDGE_WIDTH, EDGE_WIDTH, 0, 0, EDGE_WIDTH, EDGE_WIDTH);
+        if (topRight && !topRight.isPending) eCtx.drawImage(topRight.fullImage, 0, CHUNK_SIZE - EDGE_WIDTH, EDGE_WIDTH, EDGE_WIDTH, CHUNK_SIZE - EDGE_WIDTH, 0, EDGE_WIDTH, EDGE_WIDTH);
+        if (bottomLeft && !bottomLeft.isPending) eCtx.drawImage(bottomLeft.fullImage, CHUNK_SIZE - EDGE_WIDTH, 0, EDGE_WIDTH, EDGE_WIDTH, 0, CHUNK_SIZE - EDGE_WIDTH, EDGE_WIDTH, EDGE_WIDTH);
+        if (bottomRight && !bottomRight.isPending) eCtx.drawImage(bottomRight.fullImage, 0, 0, EDGE_WIDTH, EDGE_WIDTH, CHUNK_SIZE - EDGE_WIDTH, CHUNK_SIZE - EDGE_WIDTH, EDGE_WIDTH, EDGE_WIDTH);
 
         const dataURL = edgeCanvas.toDataURL('image/png');
         document.getElementById('debug-img').src = dataURL; document.getElementById('debug-img').style.display = 'block';
